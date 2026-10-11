@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deteksi Gaya Belajar Siswa</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--tx:#1d2433;--mu:#5b6578;--pr:#3b5bdb;--bd:#dde2ee;--v:#e8590c;--a:#2f9e44;--k:#7048e8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--card:#1b2030;--tx:#e8ecf5;--mu:#9aa5bd;--pr:#748ffc;--bd:#2b3248}}
+:root[data-theme="dark"]{--bg:#12151c;--card:#1b2030;--tx:#e8ecf5;--mu:#9aa5bd;--pr:#748ffc;--bd:#2b3248}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 18px;background:var(--card);border-bottom:1px solid var(--bd);flex-wrap:wrap}
+header b{font-size:18px}
+nav button{margin-left:6px}
+main{max-width:860px;margin:0 auto;padding:18px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px;margin-bottom:16px}
+h1,h2,h3{margin:0 0 10px}
+p{margin:0 0 12px;color:var(--mu)}
+label{display:block;font-weight:600;margin:12px 0 4px}
+input,select{width:100%;padding:11px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:9px 14px;border-radius:10px}
+button.p{background:var(--pr);border-color:var(--pr);color:#fff;font-weight:600}
+button.p:disabled{opacity:.5;cursor:default}
+.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:13px 14px}
+.opt.on{border-color:var(--pr);box-shadow:0 0 0 2px var(--pr) inset}
+.prog{height:8px;background:var(--bd);border-radius:6px;overflow:hidden;margin:6px 0 18px}
+.prog i{display:block;height:100%;background:var(--pr)}
+.bar{margin:10px 0}
+.bar div.t{display:flex;justify-content:space-between;font-weight:600}
+.bar div.b{height:14px;background:var(--bd);border-radius:8px;overflow:hidden}
+.bar div.b i{display:block;height:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:620px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:left;font-size:14px}
+.err{color:#e03131;font-weight:600;margin-top:8px}
+.tag{display:inline-block;padding:2px 10px;border-radius:99px;color:#fff;font-weight:700;font-size:13px}
+.big{font-size:26px;font-weight:800}
+</style>
+</head>
+<body>
+<header><b>🎓 Deteksi Gaya Belajar</b><nav><button id="nS">Siswa</button><button id="nB">Guru BK</button></nav></header>
+<main id="app"></main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const PASS="gurubk234";
+const Q=[
+["Saya lebih mudah memahami pelajaran jika ada gambar, bagan, atau diagram.","V"],
+["Saya lebih mudah paham ketika guru menjelaskan secara lisan.","A"],
+["Saya lebih mudah paham jika langsung praktik atau mencoba sendiri.","K"],
+["Saya suka mencatat dengan warna, garis bawah, atau peta konsep.","V"],
+["Saya suka belajar dengan berdiskusi atau tanya jawab bersama teman.","A"],
+["Saya sulit duduk diam lama dan sering bergerak saat belajar.","K"],
+["Saya lebih ingat wajah seseorang daripada namanya.","V"],
+["Saya lebih ingat nama seseorang daripada wajahnya.","A"],
+["Saya lebih ingat hal yang pernah saya lakukan daripada yang saya lihat atau dengar.","K"],
+["Saya lebih paham petunjuk jika dituliskan atau digambar daripada diucapkan.","V"],
+["Saya menghafal dengan membaca bersuara atau berbicara sendiri.","A"],
+["Saya suka memakai alat peraga, model, atau eksperimen.","K"],
+["Saya terganggu oleh tampilan ruangan yang berantakan saat belajar.","V"],
+["Saya terganggu oleh suara bising saat belajar.","A"],
+["Saya sering menggerakkan tangan atau kaki ketika berpikir atau menghafal.","K"],
+["Saya membayangkan gambaran isi pelajaran di kepala saat mengingatnya.","V"],
+["Saya senang belajar dari rekaman suara, musik, atau cerita.","A"],
+["Saya fokus belajar sambil berjalan atau berpindah tempat.","K"]];
+const OPT=["Tidak pernah","Jarang","Sering","Selalu"];
+const N={V:"Visual",A:"Auditori",K:"Kinestetik"},C={V:"var(--v)",A:"var(--a)",K:"var(--k)"};
+const INFO={
+V:["Kamu belajar paling baik lewat penglihatan.","Gunakan peta konsep, diagram, warna penanda, video, dan catatan bergambar. Duduk di tempat yang mudah melihat papan tulis."],
+A:["Kamu belajar paling baik lewat pendengaran.","Manfaatkan diskusi, penjelasan lisan, rekaman, membaca bersuara, dan mengajar teman. Belajar di tempat yang tenang."],
+K:["Kamu belajar paling baik lewat gerakan dan praktik.","Perbanyak praktik, eksperimen, alat peraga, simulasi, dan jeda bergerak. Belajar sambil menulis, menyusun, atau memperagakan."]};
+const $=s=>document.querySelector(s),app=$("#app");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let S={view:"start",nama:"",kelas:"",i:0,ans:[],res:null,bk:false,data:[],kf:"",dbOk:null,saveMsg:""};
+let db=null,unsub=null,local=[];
+try{local=JSON.parse(localStorage.getItem("gb_hasil")||"[]")}catch(e){}
+function saveLocal(){try{localStorage.setItem("gb_hasil",JSON.stringify(local))}catch(e){}}
+
+function hitung(ans){const s={V:0,A:0,K:0};Q.forEach((q,i)=>s[q[1]]+=ans[i]);const m=Math.max(s.V,s.A,s.K);const d=["V","A","K"].filter(k=>s[k]===m);return{...s,dom:d.map(k=>N[k]).join(" + "),domK:d}}
+function go(v){S.view=v;render()}
+$("#nS").onclick=()=>go(S.res?"result":"start");
+$("#nB").onclick=()=>go(S.bk?"bk":"login");
+
+function render(){
+ if(S.view==="start")return start();
+ if(S.view==="quiz")return quiz();
+ if(S.view==="result")return result();
+ if(S.view==="login")return login();
+ if(S.view==="bk")return bk();
+}
+function start(){
+ app.innerHTML=`<div class="card"><h1>Kenali Gaya Belajarmu</h1><p>Jawab ${Q.length} pernyataan dengan jujur sesuai kebiasaanmu. Tidak ada jawaban benar atau salah.</p>
+ <label for="n">Nama siswa</label><input id="n" value="${esc(S.nama)}" placeholder="Nama lengkap" autocomplete="off">
+ <label for="k">Kelas</label><input id="k" value="${esc(S.kelas)}" placeholder="Contoh: X IPA 1" autocomplete="off">
+ <div id="e" class="err"></div><div class="row"><button class="p" id="go">Mulai</button></div></div>`;
+ $("#go").onclick=()=>{S.nama=$("#n").value.trim();S.kelas=$("#k").value.trim();
+  if(!S.nama||!S.kelas){$("#e").textContent="Nama dan kelas wajib diisi.";return}
+  S.i=0;S.ans=[];S.res=null;S.saveMsg="";go("quiz")};
+}
+function quiz(){
+ const i=S.i,p=Math.round(i/Q.length*100);
+ app.innerHTML=`<div class="card"><p>Pertanyaan ${i+1} dari ${Q.length} · ${esc(S.nama)} (${esc(S.kelas)})</p><div class="prog"><i style="width:${p}%"></i></div>
+ <h2>${esc(Q[i][0])}</h2>${OPT.map((o,j)=>`<button class="opt ${S.ans[i]===j+1?"on":""}" data-v="${j+1}">${o}</button>`).join("")}
+ <div class="row">${i>0?'<button id="bk0">← Kembali</button>':""}</div></div>`;
+ app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{S.ans[i]=+b.dataset.v;
+  if(i<Q.length-1){S.i++;render()}else finish()});
+ const b=$("#bk0");if(b)b.onclick=()=>{S.i--;render()};
+}
+async function finish(){
+ S.res=hitung(S.ans);
+ const rec={nama:S.nama,kelas:S.kelas,V:S.res.V,A:S.res.A,K:S.res.K,dominan:S.res.dom,waktu:new Date().toISOString()};
+ try{db=db||(window.claude?await claude.use("db"):null)}catch(e){}
+ try{if(db){await db.collection("hasil").add(rec);S.saveMsg="Hasilmu sudah terkirim ke guru BK."}else throw 0}
+ catch(e){local.push(rec);saveLocal();S.saveMsg="Hasil tersimpan di browser/perangkat ini dan dapat dilihat guru BK pada perangkat yang sama."}
+ go("result");
+}
+function result(){
+ const r=S.res,tot=r.V+r.A+r.K;
+ const bars=["V","A","K"].map(k=>`<div class="bar"><div class="t"><span>${N[k]}</span><span>${r[k]} / 24 (${Math.round(r[k]/tot*100)}%)</span></div><div class="b"><i style="width:${r[k]/24*100}%;background:${C[k]}"></i></div></div>`).join("");
+ app.innerHTML=`<div class="card"><p>Hasil untuk ${esc(S.nama)} · ${esc(S.kelas)}</p><h1>Gaya belajarmu:</h1>
+ <div class="big">${r.domK.map(k=>`<span class="tag" style="background:${C[k]}">${N[k]}</span>`).join(" ")}</div><br>${bars}
+ ${r.domK.map(k=>`<h3>${N[k]}</h3><p>${INFO[k][0]}</p><p><b>Tips:</b> ${INFO[k][1]}</p>`).join("")}
+ <p>${esc(S.saveMsg)}</p><div class="row"><button class="p" id="again">Isi ulang untuk siswa lain</button></div></div>`;
+ $("#again").onclick=()=>{S.nama=S.kelas="";S.res=null;go("start")};
+}
+function login(){
+ app.innerHTML=`<div class="card"><h1>Akses Guru BK</h1><p>Masukkan password untuk melihat dan mengunduh hasil siswa.</p>
+ <label for="pw">Password</label><input id="pw" type="password" autocomplete="off"><div id="e" class="err"></div>
+ <div class="row"><button class="p" id="ok">Masuk</button></div></div>`;
+ const f=()=>{if($("#pw").value===PASS){S.bk=true;listen();go("bk")}else $("#e").textContent="Password salah."};
+ $("#ok").onclick=f;$("#pw").onkeydown=e=>{if(e.key==="Enter")f()};
+}
+async function listen(){
+ try{db=db||(window.claude?await claude.use("db"):null)}catch(e){}
+ if(!db){S.dbOk=false;S.data=local.slice();if(S.view==="bk")render();return}
+ S.dbOk=true;if(unsub)return;
+ unsub=db.collection("hasil").onSnapshot(sn=>{S.data=sn.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.kelas||"").localeCompare(b.kelas||"")||(a.nama||"").localeCompare(b.nama||""));if(S.view==="bk")render()},()=>{S.dbOk=false;if(S.view==="bk")render()});
+}
+function rows(list){return list}
+function bk(){
+ const kl=[...new Set(S.data.map(d=>d.kelas))].sort();
+ const L=S.data.filter(d=>!S.kf||d.kelas===S.kf);
+ app.innerHTML=`<div class="card"><h1>Rekap Hasil Siswa</h1>
+ ${S.dbOk===false?'<p class="err">Data diambil dari penyimpanan browser perangkat ini.</p>':""}
+ <label for="kf">Filter kelas</label><select id="kf"><option value="">Semua kelas</option>${kl.map(k=>`<option ${k===S.kf?"selected":""}>${esc(k)}</option>`).join("")}</select>
+ <p style="margin-top:10px">${L.length} siswa · Unduh seluruh data${S.kf?" kelas "+esc(S.kf):""}:</p>
+ <div class="row"><button class="p" data-a="word">Word</button><button class="p" data-a="pdf">PDF</button><button class="p" data-a="xls">Sheet (Excel)</button></div>
+ <div id="m" class="err"></div></div>
+ <div class="card tw"><table><thead><tr><th>Nama</th><th>Kelas</th><th>V</th><th>A</th><th>K</th><th>Dominan</th><th>Unduh per siswa</th></tr></thead><tbody>
+ ${L.map((d,i)=>`<tr><td>${esc(d.nama)}</td><td>${esc(d.kelas)}</td><td>${d.V}</td><td>${d.A}</td><td>${d.K}</td><td>${esc(d.dominan)}</td><td><button data-i="${i}" data-a="word">Word</button> <button data-i="${i}" data-a="pdf">PDF</button> <button data-i="${i}" data-a="xls">Sheet</button></td></tr>`).join("")||'<tr><td colspan="7">Belum ada data.</td></tr>'}
+ </tbody></table></div>`;
+ $("#kf").onchange=e=>{S.kf=e.target.value;render()};
+ app.querySelectorAll("button[data-a]").forEach(b=>b.onclick=()=>exportData(b.dataset.a,b.dataset.i===undefined?L:[L[+b.dataset.i]],b.dataset.i!==undefined));
+}
+function msg(t){const m=$("#m");if(m)m.textContent=t}
+async function exportData(fmt,list,single){
+ if(!list.length){msg("Belum ada data untuk diunduh.");return}
+ const name=single?"gaya-belajar-"+list[0].nama.replace(/[^\w]+/g,"-"):"rekap-gaya-belajar"+(S.kf?"-"+S.kf.replace(/[^\w]+/g,"-"):"");
+ const head=["No","Nama","Kelas","Visual","Auditori","Kinestetik","Gaya Dominan"];
+ const tb=[head,...list.map((d,i)=>[i+1,d.nama,d.kelas,d.V,d.A,d.K,d.dominan])];
+ let data,ext;
+ try{
+  if(fmt==="xls"){const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(tb),"Hasil");data=XLSX.write(wb,{type:"array",bookType:"xlsx"});ext="xlsx"}
+  else if(fmt==="word"){data=await mkDocx(list,single,tb);ext="docx"}
+  else{data=mkPdf(list,single);ext="pdf"}
+  const dl=window.claude?await claude.use("downloads"):null;
+  if(dl)await dl.save({filename:name+"."+ext,data});
+  else{const u=URL.createObjectURL(data instanceof Blob?data:new Blob([data]));const a=document.createElement("a");a.href=u;a.download=name+"."+ext;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
+  msg("");
+ }catch(e){if(!e||e.code!=="declined")msg("Gagal mengunduh: "+((e&&e.message)||e))}
+}
+function detail(d){const k=["V","A","K"].filter(x=>N[x]===d.dominan||d.dominan.includes(N[x]));return k.map(x=>N[x]+": "+INFO[x][0]+" Tips: "+INFO[x][1])}
+function mkPdf(list,single){
+ const{jsPDF}=window.jspdf,p=new jsPDF({unit:"pt",format:"a4"}),W=p.internal.pageSize.getWidth()-80,H=p.internal.pageSize.getHeight();
+ let y=50;const ln=(t,sz,b)=>{p.setFontSize(sz);p.setFont("helvetica",b?"bold":"normal");p.splitTextToSize(String(t),W).forEach(s=>{if(y>H-40){p.addPage();y=50}p.text(s,40,y);y+=sz+5})};
+ if(single){const d=list[0];ln("Hasil Deteksi Gaya Belajar Siswa",16,1);y+=6;ln("Nama: "+d.nama,11);ln("Kelas: "+d.kelas,11);ln("Skor Visual: "+d.V+" / 24",11);ln("Skor Auditori: "+d.A+" / 24",11);ln("Skor Kinestetik: "+d.K+" / 24",11);y+=6;ln("Gaya belajar dominan: "+d.dominan,13,1);y+=4;detail(d).forEach(t=>{ln(t,11);y+=4})}
+ else{ln("Rekap Deteksi Gaya Belajar Siswa"+(S.kf?" - Kelas "+S.kf:""),16,1);y+=6;list.forEach((d,i)=>ln((i+1)+". "+d.nama+" ("+d.kelas+") - V "+d.V+", A "+d.A+", K "+d.K+" - "+d.dominan,10));y+=8;const c={Visual:0,Auditori:0,Kinestetik:0};list.forEach(d=>d.dominan.split(" + ").forEach(x=>c[x]++));ln("Ringkasan dominan: Visual "+c.Visual+", Auditori "+c.Auditori+", Kinestetik "+c.Kinestetik,11,1)}
+ return p.output("blob");
+}
+async function mkDocx(list,single,tb){
+ const ex=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+ const P=(t,b)=>`<w:p><w:r>${b?"<w:rPr><w:b/></w:rPr>":""}<w:t xml:space="preserve">${ex(t)}</w:t></w:r></w:p>`;
+ const T=r=>`<w:tbl><w:tblPr><w:tblBorders>${["top","left","bottom","right","insideH","insideV"].map(s=>`<w:${s} w:val="single" w:sz="4" w:color="888888"/>`).join("")}</w:tblBorders></w:tblPr>${r.map((x,i)=>`<w:tr>${x.map(c=>`<w:tc><w:p><w:r>${i?"":"<w:rPr><w:b/></w:rPr>"}<w:t xml:space="preserve">${ex(c)}</w:t></w:r></w:p></w:tc>`).join("")}</w:tr>`).join("")}</w:tbl><w:p/>`;
+ let b;
+ if(single){const d=list[0];b=P("Hasil Deteksi Gaya Belajar Siswa",1)+P("Nama: "+d.nama)+P("Kelas: "+d.kelas)+T([["Visual","Auditori","Kinestetik"],[d.V+" / 24",d.A+" / 24",d.K+" / 24"]])+P("Gaya belajar dominan: "+d.dominan,1)+detail(d).map(t=>P(t)).join("")}
+ else{const c={Visual:0,Auditori:0,Kinestetik:0};list.forEach(d=>d.dominan.split(" + ").forEach(x=>c[x]++));b=P("Rekap Deteksi Gaya Belajar Siswa"+(S.kf?" - Kelas "+S.kf:""),1)+T(tb)+P("Ringkasan dominan: Visual "+c.Visual+", Auditori "+c.Auditori+", Kinestetik "+c.Kinestetik,1)}
+ const z=new JSZip();
+ z.file("[Content_Types].xml",'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+ z.file("_rels/.rels",'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+ z.file("word/document.xml",'<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+b+'</w:body></w:document>');
+ return z.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+}
+render();
+</script>
+</body>
+</html>
